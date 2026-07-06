@@ -1,0 +1,460 @@
+{
+  "name": "AI-Powered SOC Automation Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://api.abuseipdb.com/api/v2/check",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ipAddress",
+              "value": "={{$('Splunk Alert Webhook').item.json.body.src_ip}}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Key",
+              "value": "YOUR_ABUSEIPDB_API_KEY"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "f5d2fd5b-7a56-4dc2-9c61-c7268b020fce",
+      "name": "AbuseIPDB Lookup"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1fee1dc-8938-4c94-a56e-a3aa6be77938",
+              "name": "AbuseScore",
+              "value": "={{$json.data.abuseConfidenceScore}}",
+              "type": "string"
+            },
+            {
+              "id": "ec8d785b-4f76-4cf7-9de5-224bb3e6e830",
+              "name": "Country",
+              "value": "={{$json.data.countryCode}}",
+              "type": "string"
+            },
+            {
+              "id": "e9fd9ffa-b1b9-4f85-95c5-3be076c71e03",
+              "name": "ISP",
+              "value": "={{$json.data.isp}}",
+              "type": "string"
+            },
+            {
+              "id": "6a709545-7644-4f20-9236-060c4bec8d7d",
+              "name": "UsageType",
+              "value": "={{$json.data.usageType}}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        624,
+        0
+      ],
+      "id": "461bc627-e736-43a5-b9d1-bb031c2c1295",
+      "name": "Format AbuseIPDB Results"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "splunk-alert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7f75a772-5054-4b2b-9b93-fd83f4921ae3",
+      "name": "Splunk Alert Webhook",
+      "webhookId": "043f6666-916b-46d7-af99-f26d6340c2b0"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "014f08b4-5d96-4358-8ec0-674fad5eb028",
+              "name": "status",
+              "value": "Alert Recieved",
+              "type": "string"
+            },
+            {
+              "id": "6961acc3-8d9f-4c74-87ae-cd49a61b530f",
+              "name": "source",
+              "value": "Splunk",
+              "type": "string"
+            },
+            {
+              "id": "de1ecd0a-33e6-4fe3-b160-156be0e1d7a1",
+              "name": "SHA256",
+              "value": "={{$json.body.SHA256}} ",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "d2f03677-70bd-497a-8c3f-e1f29b8c39f5",
+      "name": "Extract Alert Data"
+    },
+    {
+      "parameters": {
+        "url": "={{\"https://www.virustotal.com/api/v3/files/\" + $('Splunk Alert Webhook').item.json.body.SHA256}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-apikey",
+              "value": "YOUR_VIRUSTOTAL_API_KEY"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        832,
+        0
+      ],
+      "id": "9595268d-5362-4ee2-be23-9b9bed24892f",
+      "name": "VirusTotal File Reputation Lookup"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3cf83333-1029-4b86-8e2f-9b3432b179b3",
+              "name": "VT_Malicious",
+              "value": "={{ $json.data.attributes.last_analysis_stats.malicious }}",
+              "type": "string"
+            },
+            {
+              "id": "2e8e6880-9af1-4534-969d-f7cd0217c182",
+              "name": "VT_Suspicious",
+              "value": "={{ $json.data.attributes.last_analysis_stats.suspicious }}",
+              "type": "string"
+            },
+            {
+              "id": "b8a9f85b-5ce9-4bd2-b7ea-7ca841274193",
+              "name": "VT_Harmless",
+              "value": "={{ $json.data.attributes.last_analysis_stats.harmless }}",
+              "type": "string"
+            },
+            {
+              "id": "847e4cc7-f098-4704-a49c-e70eac89f219",
+              "name": "VT_Undetected",
+              "value": "={{ $json.data.attributes.last_analysis_stats.undetected }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "e54f2313-14c0-441b-a1d7-f0e0c5c7e029",
+      "name": "VirusTotal Response"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=YOUR_GEMINI_API_KEY",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\":\n`You are a Tier-1 SOC Analyst.\n\nAnalyze the following security alert.\n\nHost: ${$('Splunk Alert Webhook').item.json.body.host}\n\nUser: ${$('Splunk Alert Webhook').item.json.body.user}\n\nImage: ${$('Splunk Alert Webhook').item.json.body.Image}\n\nCommand Line: ${$('Splunk Alert Webhook').item.json.body.CommandLine}\n\nSHA256: ${$('Splunk Alert Webhook').item.json.body.SHA256}\n\nSource IP: ${$('Splunk Alert Webhook').item.json.body.src_ip}\n\nTime: ${$('Splunk Alert Webhook').item.json.body.Time}\n\n==============================\nVirusTotal Results\n==============================\n\nMalicious: ${$('VirusTotal Response').item.json.VT_Malicious}\nSuspicious: ${$('VirusTotal Response').item.json.VT_Suspicious}\nHarmless: ${$('VirusTotal Response').item.json.VT_Harmless}\nUndetected: ${$('VirusTotal Response').item.json.VT_Undetected}\n\n==============================\nAbuseIPDB Results\n==============================\n\nAbuse Score: ${$('Format AbuseIPDB Results').item.json.AbuseScore}\nCountry: ${$('Format AbuseIPDB Results').item.json.Country}\nISP: ${$('Format AbuseIPDB Results').item.json.ISP}\nUsage Type: ${$('Format AbuseIPDB Results').item.json.UsageType}\n\nAs a SOC analyst:\n\n1. Summarize the incident.\n2. Assess the risk (Low, Medium, High, Critical).\n3. Map the activity to the MITRE ATT&CK framework (include Technique ID and name if applicable).\n4. Explain why the VirusTotal and AbuseIPDB results are relevant.\n5. Recommend immediate investigation and containment actions.\n6. State whether the alert should be escalated to a Tier-2 analyst.\n\nRespond ONLY in the following format:\n\nSummary:\nRisk:\nMITRE ATT&CK:\nThreat Intelligence:\nRecommended Actions:\nEscalation:\n`\n        }\n      ]\n    }\n  ]\n}\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1248,
+        0
+      ],
+      "id": "24a8499a-de44-442c-a6ab-f40653740493",
+      "name": "Gemini AI Security Analysis"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6cd39f27-21b7-4184-8ac5-5b3e722c865c",
+              "name": "AI_Summary",
+              "value": "={{$json.candidates[0].content.parts[0].text}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1456,
+        0
+      ],
+      "id": "e3c9b30b-bbb2-47a9-9eaa-1857a7fc478e",
+      "name": "AI Analysis"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://10.255.116.40/alerts/add",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "YOUR_DFIR_IRIS_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n  alert_title: `PowerShell Execution on ${$('Splunk Alert Webhook').item.json.body.host}`,\n\n  alert_description:\n`User: ${$('Splunk Alert Webhook').item.json.body.user}\nImage: ${$('Splunk Alert Webhook').item.json.body.Image}\nCommand Line: ${$('Splunk Alert Webhook').item.json.body.CommandLine}\nSHA256: ${$('Splunk Alert Webhook').item.json.body.SHA256}\nTime: ${$('Splunk Alert Webhook').item.json.body.Time}\n\nVirusTotal Results\nMalicious: ${$('VirusTotal Response').item.json.VT_Malicious}\nSuspicious: ${$('VirusTotal Response').item.json.VT_Suspicious}\nHarmless: ${$('VirusTotal Response').item.json.VT_Harmless}\nUndetected: ${$('VirusTotal Response').item.json.VT_Undetected}\n\nAbuseIPDB Results\nIP Address: ${$('Splunk Alert Webhook').item.json.body.src_ip}\nAbuse Score: ${$('Format AbuseIPDB Results').item.json.AbuseScore}\nCountry: ${$('Format AbuseIPDB Results').item.json.Country}\nISP: ${$('Format AbuseIPDB Results').item.json.ISP}\nUsage Type: ${$('Format AbuseIPDB Results').item.json.UsageType}\n\n====================================\nAI ANALYSIS\n====================================\n\n${$('AI Analysis').item.json.AI_Summary}`,\n\n  alert_source: \"Splunk\",\n  alert_severity_id: 4,\n  alert_status_id: 3,\n  alert_customer_id: 1\n}\n}}",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1616,
+        0
+      ],
+      "id": "89fa4178-d527-4a0b-a7bc-a2aec3ef4fcf",
+      "name": "Create DFIR-IRIS Alert"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2a45ba60-7caf-4aaa-aed8-f6421b4270e9",
+              "name": "severity",
+              "value": "High",
+              "type": "string"
+            },
+            {
+              "id": "6584d259-5f1a-41c9-967a-482a624e576d",
+              "name": "analyst",
+              "value": "SOC Analyst",
+              "type": "string"
+            },
+            {
+              "id": "cc5d17b2-14c9-4074-812d-990d6417b726",
+              "name": "status",
+              "value": "Open",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1824,
+        0
+      ],
+      "id": "f6332465-e0c9-4e8f-b87a-f3ab7dbec35b",
+      "name": "Build API Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2032,
+        0
+      ],
+      "id": "97f89d49-084a-4498-b49a-44ef67ebd14b",
+      "name": "Return Success Response"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AbuseIPDB Lookup": {
+      "main": [
+        [
+          {
+            "node": "Format AbuseIPDB Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format AbuseIPDB Results": {
+      "main": [
+        [
+          {
+            "node": "VirusTotal File Reputation Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Splunk Alert Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Alert Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Alert Data": {
+      "main": [
+        [
+          {
+            "node": "AbuseIPDB Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VirusTotal File Reputation Lookup": {
+      "main": [
+        [
+          {
+            "node": "VirusTotal Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VirusTotal Response": {
+      "main": [
+        [
+          {
+            "node": "Gemini AI Security Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini AI Security Analysis": {
+      "main": [
+        [
+          {
+            "node": "AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Create DFIR-IRIS Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create DFIR-IRIS Alert": {
+      "main": [
+        [
+          {
+            "node": "Build API Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build API Response": {
+      "main": [
+        [
+          {
+            "node": "Return Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "d354a8cc-4ef8-4203-b3fe-3ba6d4c8cad7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b2edffd89f350463719122cb60448a2ee9d0cb67cfb096e68044c27644616fe4"
+  },
+  "nodeGroups": [],
+  "id": "9uliR8itvB5BIb2I",
+  "tags": []
+}
